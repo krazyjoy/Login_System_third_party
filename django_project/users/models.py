@@ -54,6 +54,9 @@ class TestUser(AbstractUser):
 
     block = models.JSONField(null=True)
 
+
+    article = models.JSONField(null=True)
+
     remember_token = models.CharField(max_length=100, null=True, default=None)
 
     remember_token_expiration = models.DateTimeField(null=True, default=None)
