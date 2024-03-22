@@ -21,7 +21,7 @@ def register_user(request):
 urlpatterns = [  
 	path('register/', register_user, name = 'register')
 ]
-
+```
 
 
 ## Update User
