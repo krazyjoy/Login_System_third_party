@@ -251,6 +251,7 @@ if __name__ == "__main__":
 
 - add block article data to a user 
 
+```
 144.24.33.22/api/update
 
 {
