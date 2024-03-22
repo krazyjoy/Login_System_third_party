@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'users',
+    'articles',
 ]
 
 AUTH_USER_MODEL = 'users.TestUser'
