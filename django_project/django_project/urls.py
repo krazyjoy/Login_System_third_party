@@ -16,8 +16,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.views.generic import TemplateView
+from users.views import logout
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('users.urls')),
+    path('accounts/', include('allauth.urls')),
+    path('', TemplateView.as_view(template_name='users/account_base.html'), name='app-home'),
+    path('home/', TemplateView.as_view(template_name='dashboard/home.html'), name='home'),
+
 ]

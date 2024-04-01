@@ -18,19 +18,7 @@ class UserSerializer(serializers.ModelSerializer):
         user = TestUser(
             name = validated_data['name'],
             email = validated_data['email'],
-            register_from = validated_data['register_from'],
-            avatar = validated_data['avatar'],
-            gender = validated_data['gender'],
-            birthday = validated_data['birthday'],
-            phone = validated_data['phone'],
-            website = validated_data['website'],
-            biography = validated_data['biography'],
-            zipcode = validated_data['zipcode'],
-            country = validated_data['country'],
-            state = validated_data['state'],
-            city = validated_data['city'],
-            address = validated_data['address'],
-            block = validated_data['block']
+
         )
 
         user.set_password(validated_data['password'])

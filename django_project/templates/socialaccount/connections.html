@@ -1,0 +1,87 @@
+{% extends "users/account_base.html" %}
+{% load static %}
+{% load i18n %}
+{% load allauth %}
+{% block head_title %}{% trans "Account Connections" %}{% endblock %}
+
+{% block content %}
+<div class="text-center">
+    <h1>{% trans "Account Connections" %}</h1>
+
+    {% if form.accounts %}
+        <p>{% blocktrans %}You can sign in to your account using any of the following third party accounts:{% endblocktrans %}</p>
+
+
+        <div class="container mx-auto">
+        <div class="text-center">
+            <form method="post" action="{% url 'socialaccount_connections' %}">
+            {% csrf_token %}
+
+            <!-- show error fields in form -->
+            <fieldset>
+                {% if form.non_field_errors %}
+                    <div id="errorMsg">{{ form.non_field_errors }}</div>
+                {% endif %}
+            <!-- base account information: provider -> 3rd_party_account -->
+                <table class="connection_table mx-auto table-bordered p">
+                    <thead>
+                        <tr>
+                            <th class="p-3">Provider</th>
+                            <th class="p-3">Account</th>
+                            <th class="p-3">Select</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for base_account in form.accounts %}
+                            {% with base_account.get_provider_account as account %}
+                                <label for="id_account_{{ base_account.id }}">
+                                    <input id="id_account_{{ base_account.id }}" type="radio" name="account" value="{{ base_account.id }}"/>
+                                    <span class="socialaccount_provider {{ base_account.provider }} {{ account.get_brand.id }}">{{account.get_brand.name}}</span>
+                                    -> {{ account }}
+                                </label>
+                                <tr>
+                                    <td class="p-3">
+                                         <span class="socialaccount_provider {{ base_account.provider }} {{ account.get_brand.id }}">
+                                            {{account.get_brand.name}}
+                                        </span>
+                                    </td>
+                                    <td class="p-3">
+                                        {{account}}
+                                    </td>
+                                    <td class="p-3">
+                                        <input id="id_account_{{ base_account.id}}" type="radio" name="accounts" value="{{base_account.id}}">
+                                        <label for="id_account_{{ base_account.id }}"></label>
+                                    </td>
+                                </tr>
+                            {% endwith %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div>
+
+
+
+            <!--remove social account from user -->
+                <div class="my-4">
+                    <button class="btn btn-dark" type="submit">{% trans 'Remove' %}</button>
+                </div>
+
+            </fieldset>
+
+            </form>
+        </div>
+        </div>
+    {% else %}
+        <p>{% trans 'You currently have no social network accounts connected to this account.' %}</p>
+    {% endif %}
+
+    <hr>
+    <h3>{% trans 'Add a 3rd Party Account' %}</h3>
+
+    <div class="socialaccount_providers">
+        {% include "socialaccount/snippets/provider_list.html" with process="connect" %}
+    </div>
+
+    {% include "socialaccount/snippets/login_extra.html" %}
+</div>
+{% endblock %}

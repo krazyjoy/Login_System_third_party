@@ -11,15 +11,10 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-$^*#n4#rjjwt^uuql1@pz-k0+of@0#z2+=3fx&9&9+zp7@$s8%'
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -41,6 +36,19 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'users',
     'articles',
+
+    # adding for allauth
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+
+    # include the providers to enable
+    'allauth.socialaccount.providers.google',
+
+    # add crispy forms
+    'crispy_forms',
+    'crispy_bootstrap5',
 ]
 
 AUTH_USER_MODEL = 'users.TestUser'
@@ -48,9 +56,19 @@ AUTH_USER_MODEL = 'users.TestUser'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication'
     ],
-    # Other settings...
+
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated'
+    ]
 }
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -60,6 +78,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware'
 ]
 
 ROOT_URLCONF = 'django_project.urls'
@@ -67,7 +86,7 @@ ROOT_URLCONF = 'django_project.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -128,13 +147,78 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.0/howto/static-files/
-
-STATIC_URL = 'static/'
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+
+
+""" static css """
+STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, '/static/')
+CRISPY_ALLOWED_TEMPLATE_PACK = 'bootstrap5'
+CRISPY_TEMPLATE_PACK = 'bootstrap5'
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'users/static'),
+]
+
+
+
+""" social account """
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL='home'
+SITE_ID = 1
+
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': '212242759090-n4rmcl4taj63cmoebd3tdh4of2tvjido.apps.googleusercontent.com',
+            'secret': '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',
+            'key': ''
+        },
+        'SCOPE':[
+            'profile',
+            'email'
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+            'prompt': 'login',
+        }
+    }
+}
+
+ACCOUNT_FORMS = {'signup': 'users.forms.CustomSignupForm'}
+ACCOUNT_EMAIL_REQUIRED = True
+SOCIALACCOUNT_QUERY_EMAIL=True
+#SOCIALACCOUNT_ADAPTER='users.adapters.CustomSocialAccountAdapter'
+
+#SOCIALACCOUNT_EMAIL_REQUIRED=True
+SOCIALACCOUNT_STORE_TOKENS=False
+
+
+
+""" logging """
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': '/mnt/c/Users/huang/OneDrive/桌面/OIN/login_app/version2/django_project/django_project/logs/django.log',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'level': 'INFO',
+        },
+    },
+}
+
+""" login url (used for LoginRequiredMixin) """
+
+LOGIN_URL = '/accounts/login/'

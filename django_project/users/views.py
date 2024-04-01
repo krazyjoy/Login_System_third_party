@@ -4,9 +4,11 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from .serializer import UserSerializer
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
-from datetime import timedelta
+from django.contrib.auth.decorators import login_required
+
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
+
 from .models import TestUser
 
 from rest_framework.authentication import TokenAuthentication
@@ -23,9 +25,31 @@ from articles.serializer import ArticleSerializer
 
 
 from articles.models import Articles
+from .forms import CustomSignupForm
+from django.contrib import messages
+
+from rest_framework.permissions import AllowAny
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+
+from .models import TestUser
+from django.shortcuts import render
+from .forms import CustomUserUpdateForm
+def home(request):
+    model_fields = TestUser._meta.get_fields()
+
+    # Extract field names and their types
+    field_info = [(field.name, field.get_internal_type()) for field in model_fields]
+
+    # print(field_info)
+    context = {
+        'users': TestUser.objects.all()
+    }
+    print(f'context: {context}')
+    return render(request, 'users/account_base.html', context)
 
 
 @api_view(['POST'])
+@permission_classes([AllowAny])  # Allow access to unauthenticated users
 def register_user(request):
     if request.method == 'POST':
         serializer = UserSerializer(data=request.data)
@@ -33,7 +57,6 @@ def register_user(request):
             serializer.save()
             return Response(serializer.data, status = status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 @api_view(['POST'])
 def user_login(request):
@@ -149,6 +172,26 @@ def update_user(request):
 
             return Response({'message':'fail to implement block data'}, status=status.HTTP_400_BAD_REQUEST)
 
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.urls import reverse_lazy
+from django.views.generic import UpdateView
+
+class UserUpdateView(LoginRequiredMixin, UpdateView):
+    model = TestUser
+    form_class = CustomUserUpdateForm
+    template_name = "users/update_profile.html"
+    success_url = reverse_lazy("home")
+
+    def get_object(self, queryset=None):
+        try:
+            print(self.request.user._wrapped.objects.all())
+        except:
+            print("cannot self.request.user._wrapped.objects.all()")
+        return self.request.user
+    def form_valid(self, form):
+        self.object = form.save()
+        return super().form_valid(form)
+
 
 @api_view(['PUT'])
 def fake_delete_user(request):
@@ -165,6 +208,7 @@ def fake_delete_user(request):
 
 @api_view(['POST'])
 def logout(request):
+    print("logout")
     user = token_authentication(request)
 
     if user is None:
@@ -174,3 +218,35 @@ def logout(request):
     user.remember_token = ''
     user.save()
     return Response({'message': 'Logout successful'}, status=status.HTTP_200_OK)
+
+from django.shortcuts import redirect
+from django.contrib.auth import logout as django_logout
+from allauth.socialaccount.models import SocialToken
+import requests
+def logoutfromgoogle(request):
+    print(f"user is :{request.user}")
+    google_token = SocialToken.objects.filter(account__user=request.user, account__provider='google').first()
+    print(f"google token is {google_token}")
+    if google_token:
+        revoke_google_token(google_token.token)
+
+    # Log out from Django
+    django_logout(request)
+
+    # Redirect to a logged out page or any other appropriate URL
+    return redirect('app-home')
+
+def revoke_google_token(token):
+    revoke_endpoint = 'https://oauth2.googleapis.com/revoke'
+    data = {'token': token}
+    response = requests.post(revoke_endpoint, data=data)
+
+    if response.status_code == 200:
+        print('Google token revoked successfully')
+    else:
+        print('Failed to revoke Google token')
+
+    return response
+
+
+

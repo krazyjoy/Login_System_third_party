@@ -1,0 +1,25 @@
+
+{% load socialaccount %}
+{% block content %}
+    <div>
+      <h1>Normal Login</h1>
+      <a href="{% url 'account_login' %}">Sign In</a>
+    </div>
+    <div>
+        <a href="{% provider_login_url 'google' %}">
+            <button>
+                Sign In with Google
+            </button>
+        </a>
+    </div>
+  {% for user in users %}
+
+    <div class="mt-2">
+
+      <a class="mr-3" style="text-decoration: none;" href="#">{{user.email}}</a>
+      <a class="mr-3" style="text-decoration: none;" href="#">{{user.name}}</a>
+
+    </div>
+
+  {% endfor %}
+{% endblock content %}
