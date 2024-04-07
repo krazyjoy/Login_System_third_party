@@ -284,8 +284,341 @@ class CustomUserUpdateForm(forms.ModelForm):
 
 
 
+# Prone to Errors
+
+## Integrity Error
+
+when using third party authentication, it does not fill out the attributes on the model
+(same error occurred, when I tried to use regular register method)
+
+ 
+-  solution:  add `blank=True` prior to `null=True`, `default=None`
+	- `null=True`, `default=None` is still needed when doing `python manage.py migrate`
+	```
+	It is impossible to change a nullable field 'deleted_at' on testuser to non-nullable without providing a default. This is because the database needs something to populate existing rows.
+	Please select a fix:
+	 1) Provide a one-off default now (will be set on all existing rows with a null value for this column)
+	 2) Ignore for now. Existing rows that contain NULL values will have to be handled manually, for example with a RunPython or RunSQL operation.
+	 3) Quit and manually define a default value in models.py.
+	```
+
+	`website = models.CharField(max_length=100, null=True, default=None)`
+	
+	$\rightarrow$
+	`website = models.CharField(max_length=100, blank=True, null=True, default=None)`
 
 
+## Unable to Signout
+
+![](images/unable_to_signout.png)
+
+
+Cannot find the corresponding user to sign out from
+
+
+## Unable to see fields email from Google OAuth2
+
+Certainly! It seems you’re facing an issue with obtaining email addresses while using **Django Allauth**. Let’s troubleshoot this together.
+
+To ensure that email addresses are retrieved successfully, consider the following steps:
+
+1. **Check Scopes**:
+    - In your `settings.py`, make sure you’ve set the correct scopes for Google authentication. [Specifically, the **SCOPE** should include both `'profile'` and `'email'`](http://django-allauth.readthedocs.org/en/latest/providers.html)[1](http://django-allauth.readthedocs.org/en/latest/providers.html).
+    - Here’s an example of how it should look:
+        
+        ```python
+        SOCIALACCOUNT_PROVIDERS = {
+            'google': {
+                'SCOPE': ['profile', 'email'],
+                'AUTH_PARAMS': {'access_type': 'online'}
+            }
+        }
+        ```
+        
+2. **Verify Other Settings**:
+    - Ensure that other relevant settings are correctly configured. For instance:
+        - `ACCOUNT_EMAIL_REQUIRED` should be set to `True`.
+        - `SOCIALACCOUNT_QUERY_EMAIL` should be `True`.
+    - [You can also explore additional settings related to email verification and authentication methods](https://stackoverflow.com/questions/23956288/django-all-auth-email-required)[2](https://stackoverflow.com/questions/23956288/django-all-auth-email-required)[3](https://www.codesnail.com/django-allauth-email-authentication-tutorial/).
+3. **Debugging**:
+    - If the issue persists, consider debugging by:
+        - Checking logs for any error messages.
+        - Verifying that the Google API credentials are correctly set up.
+        - Testing with a minimal reproducible example to isolate the problem.
+
+Remember that email retrieval is essential for user authentication and communication. If you encounter further difficulties, feel free to ask for more assistance! 🌟
+
+
+- tables saved:
+	- users_testuser
+	- account_emailaddress
+	- socialaccount_socialaccount
+
+
+
+
+## Weird Password saved to Users model
+
+[customUserAuthentication/customUser at main · Nathius262/customUserAuthentication (github.com)](https://github.com/Nathius262/customUserAuthentication/tree/main/customUser)
+
+
+
+## Unable to signup a new user through social authentication without regular signup
+
+- weird password saved to table `users_testuser`
+- no way to retrieve third party sign-in password
+
+solution:
+regular signup $\rightarrow$ connect to third party
+
+
+# Workflow
+## Intercept Social Auth Process Information Through Signal 
+
+1. register for signal in `users.apps.py`
+	```
+	from django.apps import AppConfig  
+	class UsersConfig(AppConfig):  
+	default_auto_field = 'django.db.models.BigAutoField'  
+	name = 'users'  
+	def ready(self):  
+		import users.signals	
+	```
+
+```
+# users.signals.py
+
+from allauth.socialaccount.signals import pre_social_login, social_account_added  
+from django.dispatch import receiver
+```
+
+2. `pre_social_login_callback()`
+	- `sociallogin`  parameter
+		- `social_account`
+		- `social_account.provider`
+		- `social_account.uid`
+		- `social_account.extra_data`
+	
+```
+inside: `users.signals.py`
+
+
+@receiver(pre_social_login)  
+def pre_social_login_callback(sender, request, sociallogin, **kwargs):  
+  
+
+	social_account = sociallogin.account  
+	# Inspect the data received from the OAuth2 provider  
+	try:  
+  
+		print("Provider: ", social_account.provider)  
+		print("User ID: ", social_account.uid)  
+		print("Extra Data: ", social_account.extra_data)  
+	except:  
+		print("unable to print keys")
+
+```
+	e.g. `chihyi2323@gmail.com` connection
+
+![](images/pre_social_login.png)
+
+3. `social_account_added_callback()`
+	- signal: `social_account_added`
+	- `socaillogin` parameter
+		- `social_account`
+		- `sociallogin.user`
+		- `sociallogin.email_addresses` # need the google `SCOPE` and `AUTH_PARAMS` setup
+
+`settings.py`
+```
+SOCIALACCOUNT_PROVIDERS = {  
+	'google': {  
+		'APP': {  
+		'client_id': '212242759090-n4rmcl4taj63cmoebd3tdh4of2tvjido.apps.googleusercontent.com',  
+		'secret': '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',  
+		'key': ''  
+		},  
+	'SCOPE':[  
+		'profile',  
+		'email'  
+	],  
+	'AUTH_PARAMS': {'access_type': 'online'}  
+	}  
+}
+```
+
+![](images/social_account_added.png)
+4. `social_account_updated_callback()`
+	- signal: `social_account_updated`
+	- same as `social_account_added_callback`
+![](images/social_account_updated.png)
+
+
+
+## Reauthenticate
+
+- issue: after 1 registration with google oauth2 under same ip, when click the google sign-in button, it directly signs in to the previous account, but reauthentication and add new google account is preferred
+
+`settings.py`
+
+```
+SOCIALACCOUNT_PROVIDERS = {  
+	'google': {  
+		'APP': {  
+			'client_id': '212242759090-n4rmcl4taj63cmoebd3tdh4of2tvjido.apps.googleusercontent.com',  
+			'secret': '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',  
+			'key': ''  
+		},  
+		'SCOPE':[  
+			'profile',  
+			'email'  
+		],  
+		'AUTH_PARAMS': {  
+			'access_type': 'online',  
+			'prompt': 'login',  # this is added to reauthenticate
+		}  
+	}  
+}
+```
+
+
+## Connections
+
+`accounts/social/connections/`
+
+
+![](images/account_connections.png)
+
+
+
+`pip install allauth allows form.accounts` to be accessible
+
+1. create a list of provider to account connections 
+	-  for loop over `form.accounts`
+		- `base_account.id`
+		- `base_account.get_provider_account as account`
+			- `account.get_brand_name`
+			- `account`
+
+- original using arrows
+```
+{% if form.accounts %} # has social account
+
+	<form method="post" action="{% url 'socialaccount_connections' %}">
+		{% csrf_token %}
+	
+		<fieldset>
+		{% if form.non_field_errors %} # has field error
+			<div id="errorMsg">
+				{{form.non_field_errors}}
+			</div>
+		{% endif %}
+	{% for base_account in form.accounts %}
+		{% with base_account.get_provider_account as account %}
+			<div>
+			<label for='id_account_{{base_account.id}}' >
+			<input id='id_account_{{base_account.id}}'
+				type = "radio"
+				name = "account"
+				value = "{{base_account.id}}"/>
+			<span>
+				{{account.get_brand_name}}
+				-> {{account}}
+			</span>
+			</div>
+		{% endwith %}
+	{% endfor %}	
+	
+
+```
+
+- after: using table representation
+	
+| provider | account  | select    |
+| -------- | -------- | --------- |
+| Google   | username | check-box |
+
+### Styling table
+
+- center content
+```
+<div class="container mx-auto">  
+<div class="text-center">  
+
+
+```
+- center table (add class)
+	- `mx-auto`
+- add border (with paddings)
+	- `<table class=table-bordered>`
+		- `<th class="p-3">`
+		- `<td class="p-3">`
+
+```
+{% extends "users/account_base.html" %}  
+{% load static %}  
+{% load i18n %}  
+{% load allauth %}  
+{% block head_title %}{% trans "Account Connections" %}{% endblock %}  
+```
+
+
+### connection table
+
+- use form to wrap a table, and send `remove` submission if checkbox account is ticked
+which directs to `socialaccount_connections`
+- use `form.accounts` to access `connection` records
+
+```  
+<form method="post" action="{% url 'socialaccount_connections' %}">
+	<!-- base account information: provider -> 3rd_party_account -->  
+	<table class="connection_table mx-auto table-bordered p">  
+		<thead>  
+			<tr>  
+				<th class="p-3">Provider</th>  
+				<th class="p-3">Account</th>  
+				<th class="p-3">Select</th>  
+			</tr>  
+		</thead>  
+		<tbody>  
+			{% for base_account in form.accounts %}  
+			{% with base_account.get_provider_account as account %}  
+				<tr>  
+					<td class="p-3">  
+						<span class="socialaccount_provider {{ base_account.provider }} {{ account.get_brand.id }}">  
+						{{account.get_brand.name}}  
+						</span>  
+					</td>  
+					<td class="p-3">  
+						{{account}}  
+					</td>  
+					<td class="p-3">  
+						<input id="id_account_{{ base_account.id}}" type="checkbox" name="accounts" value="{{base_account.id}}">  
+						<label for="id_account_{{ base_account.id }}"></label>  
+					</td>  
+				</tr>  
+			{% endwith %}  
+			{% endfor %}  
+		</tbody>  
+	</table>  
+	  
+	<!--remove social account from user -->  
+	<div class="my-4">  
+		<button class="btn btn-dark" type="submit">{% trans 'Remove' %}</button>  
+	</div>  
+	  
+	</fieldset>  
+  
+</form>  
+
+```
+
+![](images/connection_table.png )
+
+- issue: the checkbox/radio button inside the table does not remove the connection
+
+
+# Django Restful Framework
 ## Sign Up User
 
 `users/views.py`
